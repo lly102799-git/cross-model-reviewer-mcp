@@ -1,15 +1,37 @@
 {
   "mcpServers": {
     "cross-model-reviewer": {
-      "command": "C:\\path\\to\\venv\\Scripts\\python.exe",
-      "args": ["C:\\path\\to\\cross-model-reviewer-mcp\\deepseek_reviewer.py"],
+      "command": "<你的venv路径>/Scripts/python.exe",
+      "args": ["<本仓库路径>/deepseek_reviewer.py"],
       "env": {
         "REVIEWER_BASE_URL": "https://api.deepseek.com/v1",
-        "REVIEWER_MODEL": "deepseek-v4-flash",
+        "REVIEWER_API_KEY": "<必填：你的 DeepSeek API Key>",
         "REVIEWER_ALLOWED_MODELS": "deepseek-v4-flash,deepseek-v4-pro,deepseek-v4-flash-vision-exp",
-        "REVIEWER_API_KEY": "<在此填入你的API Key>",
-        "REVIEWER_TEMPERATURE": "0.1"
-      }
+        "REVIEWER_DEFAULT_MODEL": "deepseek-v4-flash",
+
+        "ZHIPU_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
+        "ZHIPU_API_KEY": "<可选：智谱 API Key，不配则该厂商不可用>",
+        "ZHIPU_MODELS": "glm-5.3,glm-5.3-flash,glm-5.3-flashx,glm-4.6",
+
+        "REVIEWER_TEMPERATURE": "0.1",
+        "REVIEWER_MAX_TOKENS": "16384",
+        "REVIEWER_REASONING_EFFORT": "medium",
+
+        "REVIEWER_TIMEOUT": "1200",
+        "REVIEWER_STREAM_IDLE": "300",
+        "REVIEWER_NET_RETRY": "1",
+        "REVIEWER_TASK_WAIT_MAX": "300",
+
+        "REVIEWER_DUAL_MODELS": "",
+        "REVIEWER_ARBITRATE_MODEL": "deepseek-v4-pro",
+
+        "REVIEWER_CACHE": "true",
+        "REVIEWER_CACHE_TTL_DAYS": "30",
+        "REVIEWER_CACHE_MAX": "300",
+
+        "REVIEWER_REPORT_DIR": ""
+      },
+      "disabled": false
     }
   }
 }

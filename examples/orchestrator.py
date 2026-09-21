@@ -4,6 +4,10 @@
 完整演示「模型A生成 -> 模型B审校 -> 反馈回流 -> 模型A修订」闭环。
 两个模型都走 OpenAI 兼容接口，可以是任意厂商（OpenAI / DeepSeek / Kimi / OpenRouter / 本地 vLLM）。
 
+注意：本文件是**原理演示**，刻意保持最小。正式使用请走 MCP 服务器
+（deepseek_reviewer.py），它额外提供：多厂商路由、两阶段确认、异步+流式、
+跨厂商并发双审、结果缓存、报告落盘、状态落盘与网络重试。
+
 运行前设置环境变量：
   A_BASE_URL / A_MODEL  / A_API_KEY   生产者（模型A）
   B_BASE_URL / B_MODEL  / B_API_KEY   审校者（模型B，建议与A不同厂商，实现错误去相关）
@@ -60,6 +64,13 @@ REVIEW_TOOL = {
                     "items": {"type": "string"},
                     "description": "审查维度，如 correctness / security / edge-cases / structure",
                 },
+                "requirements": {
+                    "type": "string",
+                    "description": (
+                        "任务的边界条件与验收标准（场景、硬性指标、必须满足的假设）。"
+                        "审校者会逐条核对符合性——区分『做得对不对』与『是不是你要的』。"
+                    ),
+                },
             },
             "required": ["artifact_type", "content"],
         },
@@ -69,8 +80,9 @@ REVIEW_TOOL = {
 # ---------- 审校模型B的提示词：只看产物、结构化输出 ----------
 REVIEW_PROMPT = """你是独立的资深审校专家，与产出者不是同一人。
 以挑剔视角审查以下{kind}，只基于产物本身判断，不要臆测作者意图。
+默认产物中至少存在 3 个问题，逐项排查后确实没有再给 pass。
 重点维度：{focus}。
-
+{requirements_block}
 输出严格 JSON（不要输出其他内容）：
 {{"verdict": "pass 或 fail",
   "issues": [{{"severity": "blocker/major/minor",
@@ -79,15 +91,23 @@ REVIEW_PROMPT = """你是独立的资深审校专家，与产出者不是同一�
                "suggestion": "具体可执行的修改建议"}}],
   "summary": "一句话总体评价"}}
 
+若给出了任务边界条件与验收标准，须逐条核对符合性；不满足任意一条 blocker 级要求即 fail。
+
 {kind}内容：
 {content}"""
 
 
-def review_artifact(artifact_type, content, focus=None):
+def review_artifact(artifact_type, content, focus=None, requirements=None):
     """真正调用模型B执行审校——在MCP路线里，这一段就是MCP服务器的工具实现"""
     kind = "代码" if artifact_type == "code" else "文档"
+    req_block = ""
+    if requirements and str(requirements).strip():
+        req_block = ("\n该产物的任务边界条件与验收标准如下，请逐条核对：\n"
+                     + str(requirements).strip() + "\n")
     prompt = REVIEW_PROMPT.format(
-        kind=kind, content=content, focus="、".join(focus) if focus else "自行判断"
+        kind=kind, content=content,
+        focus="、".join(focus) if focus else "自行判断",
+        requirements_block=req_block,
     )
     msg = chat(
         [{"role": "user", "content": prompt}],
